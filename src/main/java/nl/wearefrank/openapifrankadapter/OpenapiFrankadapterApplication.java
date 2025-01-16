@@ -1,5 +1,5 @@
 /*
-   Copyright 2023 WeAreFrank!
+   Copyright 2024 WeAreFrank!
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
@@ -53,42 +53,62 @@ public class OpenapiFrankadapterApplication {
 
     }
 
+    private static ResponseEntity getFileResponseEntity(MultipartFile file, Option templateOption) throws IOException, SAXException {
+        // Check if it's a JSON or YAML file
+        if (!file.getContentType().matches("application/(json|yaml|x-yaml|octet-stream)")) {
+            return ResponseEntity.status(415)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new InputStreamResource(new ByteArrayInputStream("{\"message\": \"Unsupported Media Type\"}".getBytes())));
+        } else {
+            GenFiles convertedFile;
+            if (!file.getContentType().equals(MediaType.APPLICATION_JSON_VALUE))
+                convertedFile = new GenFiles("inputted-api.yaml", file.getBytes());
+            else {
+                convertedFile = new GenFiles("inputted-api.json", file.getBytes());
+            }
+            return responseGenerator(convertedFile, templateOption);
+        }
+    }
+
+    private static ResponseEntity getUrlResponseEntity(String url, Option templateOption) throws IOException, SAXException {
+            GenFiles convertedFile = new GenFiles("inputted-api.json", downloadFileFromUrl(url));
+            return responseGenerator(convertedFile, templateOption);
+    }
+
+    @CrossOrigin(origins = "http://localhost:3000")
     @PostMapping(value = "/receiver-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Resource> postFileReceiver(@RequestParam("file") MultipartFile file) throws IOException, SAXException {
-        // Check if it's a JSON file
-        if (!file.getContentType().equals("application/json") && !file.getContentType().equals("application/yaml")) {
-            return ResponseEntity.status(415)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new InputStreamResource(new ByteArrayInputStream("{\"message\": \"Unsupported Media Type\"}".getBytes())));
-        } else {
-            GenFiles convertedFile = new GenFiles("inputed-api.json", file.getBytes());
-            return responseGenerator(convertedFile, Option.RECEIVER);
-        }
+        return getFileResponseEntity(file, Option.RECEIVER);
     }
 
+    @CrossOrigin(origins = "http://localhost:3000")
     @PostMapping(value = "/receiver-url", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Resource> postUrlReceiver(@RequestParam("url") String url) throws IOException, SAXException {
-        GenFiles convertedFile = new GenFiles("inputed-api.json", downloadFileFromUrl(url));
-        return responseGenerator(convertedFile, Option.RECEIVER);
+        return getUrlResponseEntity(url, Option.RECEIVER);
     }
 
+    @CrossOrigin(origins = "http://localhost:3000")
     @PostMapping(value = "/sender-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Resource> postFileSender(@RequestParam("file") MultipartFile file) throws IOException, SAXException {
-        // Check if it's a JSON file
-        if (!file.getContentType().equals("application/json") && !file.getContentType().equals("application/yaml")) {
-            return ResponseEntity.status(415)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new InputStreamResource(new ByteArrayInputStream("{\"message\": \"Unsupported Media Type\"}".getBytes())));
-        } else {
-            GenFiles convertedFile = new GenFiles("inputed-api.json", file.getBytes());
-            return responseGenerator(convertedFile, Option.SENDER);
-        }
+        return getFileResponseEntity(file, Option.SENDER);
     }
 
+    @CrossOrigin(origins = "http://localhost:3000")
     @PostMapping(value = "/sender-url", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Resource> postUrlSender(@RequestParam("url") String url) throws IOException, SAXException {
-        GenFiles convertedFile = new GenFiles("inputed-api.json", downloadFileFromUrl(url));
-        return responseGenerator(convertedFile, Option.SENDER);
+        return getUrlResponseEntity(url, Option.SENDER);
+    }
+
+    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping(value = "/xsd-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Resource>postFileXsd(@RequestParam("file") MultipartFile file) throws IOException, SAXException {
+        return getFileResponseEntity(file, Option.XSD);
+    }
+    
+    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping(value = "/xsd-url", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Resource> postUrlXsd(@RequestParam("url") String url) throws IOException, SAXException {
+        return getUrlResponseEntity(url, Option.XSD);
     }
 
     public static ResponseEntity responseGenerator(GenFiles file, Option templateOption) throws IOException, SAXException {
@@ -103,6 +123,16 @@ public class OpenapiFrankadapterApplication {
         // Read the openapi specification
         SwaggerParseResult result = new OpenAPIParser().readContents(json, null, null);
         OpenAPI openAPI = result.getOpenAPI();
+
+        // Validate parsed result
+        if (openAPI == null) {
+            String errorMessage = String.format("Error parsing OpenAPI specification: %s",
+                    result.getMessages() != null ? String.join(", ", result.getMessages()) : "No additional details.");
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new InputStreamResource(new ByteArrayInputStream(String.format("{\"message\": \"%s\"}", errorMessage).getBytes())));
+        }
+
         LinkedList<GenFiles> genFiles;
         // Try catch for error handling return
         try {
@@ -112,6 +142,10 @@ public class OpenapiFrankadapterApplication {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(new InputStreamResource(new ByteArrayInputStream(error.getMessage().getBytes())));
         }
+
+        // Generate the Configuration.xml file
+        GenFiles configXmlFile = generateConfigurationXml(genFiles);
+        genFiles.add(configXmlFile);
 
         // Generate the zip file; add original file to the zip file
         genFiles.add(file);
@@ -127,16 +161,47 @@ public class OpenapiFrankadapterApplication {
                 .body(new InputStreamResource(new ByteArrayInputStream(response)));
     }
 
+    private static GenFiles generateConfigurationXml(LinkedList<GenFiles> genFiles) {
+        StringBuilder xmlContent = new StringBuilder();
+        xmlContent.append("<Configuration>\n");
+
+        for (GenFiles file : genFiles) {
+            String fileName = file.getName();
+            if (fileName.endsWith(".xml")) {
+                String dirName = fileName.substring(0, fileName.lastIndexOf('.'));
+                xmlContent.append(" <Include ref=\"").append(dirName).append("/" + "xml" + "/").append(fileName).append("\"/>\n");
+            }
+        }
+
+        xmlContent.append("</Configuration>");
+
+        return new GenFiles("Configuration.xml", xmlContent.toString().getBytes());
+    }
+
     //// Method to convert in-memory files into a singular zip file ////
     public static byte[] convertToZip(LinkedList<GenFiles> files) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         ZipOutputStream zipOutputStream = new ZipOutputStream(byteArrayOutputStream);
 
         for (GenFiles file : files) {
-            ZipEntry entry = new ZipEntry(file.getName());
-            zipOutputStream.putNextEntry(entry);
-            zipOutputStream.write(file.getContent());
-            zipOutputStream.closeEntry();
+            String fileName = file.getName();
+            if (fileName.startsWith("inputted-api") || fileName.startsWith("Configuration")) {
+                // Add inputted-api file directly to the root of the zip
+                ZipEntry entry = new ZipEntry(fileName);
+                zipOutputStream.putNextEntry(entry);
+                zipOutputStream.write(file.getContent());
+                zipOutputStream.closeEntry();
+            } else {
+                // Create subdirectories for each adapter
+                String adapterName = fileName.substring(0, fileName.lastIndexOf('.'));
+                String subDir = fileName.endsWith(".xml") ? "xml" : "xsd";
+                String entryName = adapterName + "/" + subDir + "/" + fileName;
+
+                ZipEntry entry = new ZipEntry(entryName);
+                zipOutputStream.putNextEntry(entry);
+                zipOutputStream.write(file.getContent());
+                zipOutputStream.closeEntry();
+            }
         }
 
         zipOutputStream.close();

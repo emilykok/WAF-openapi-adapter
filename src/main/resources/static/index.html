@@ -164,11 +164,12 @@
 </header>
 <form method="post" action="/" enctype="multipart/form-data" class="center">
     <label for="openapi-file">Select an OpenAPI document:</label>
-    <input type="file" id="openapi-file" name="file" accept="application/json" />
+    <input type="file" id="openapi-file" name="file" accept="application/json,application/yaml,application/x-yaml,application/octet-stream,text/yaml,text/plain" required/>
 
     <div class="center">
         <input type="submit" name="submit" value="Receiver" class="inline" formaction="/receiver-file" />
         <input type="submit" name="submit" value="Sender" class="inline" formaction="/sender-file" />
+        <input type="submit" name="submit" value="XSD Only" class="inline" formaction="/xsd-file" />
     </div>
 </form>
 
@@ -179,6 +180,7 @@
     <div class="center button-container">
         <input type="submit" name="submit" value="Receiver" class="inline" formaction="/receiver-url" />
         <input type="submit" name="submit" value="Sender" class="inline" formaction="/sender-url" />
+        <input type="submit" name="submit" value="XSD Only" class="inline" formaction="/xsd-url" />
     </div>
 </form>
 
@@ -232,7 +234,7 @@
 </script>
 
 <footer>
-    &copy; WeAreFrank 2023
+    &copy; WeAreFrank 2024
 </footer>
 </body>
 </html>

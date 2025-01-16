@@ -46,7 +46,7 @@ public class Element {
     // Setters
     public void setType(String type) {
         if (Objects.equals(type, "numberType")) {
-            this.type = "xs:float";
+            this.type = "float";
         } else {
             this.type = type;
         }

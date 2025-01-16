@@ -63,37 +63,32 @@ public class XMLGenerator {
                 AdapterExits adapterExits = new AdapterExits();
                 adapterExits.GetAdapterExits(operation);
 
-                //// Template ////
-                // Get the template file as an input stream
-                InputStream inputStream = null;
+                if (templateOption == Option.RECEIVER || templateOption == Option.SENDER) {
+                    //// Template ////
+                    // Get the template file as an input stream
+                    InputStream inputStream = XMLGenerator.class.getResourceAsStream(templateOption.getTemplateName());
 
-                switch (templateOption){
-                    case RECEIVER:
-                        inputStream = XMLGenerator.class.getResourceAsStream("/templates/receiverTemplate.hbs");
-                    case SENDER:
-                        inputStream = XMLGenerator.class.getResourceAsStream("/templates/senderTemplate.hbs");
+                    // Read the input stream into a String
+                    String templateString = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+
+                    // Close the input stream
+                    inputStream.close();
+
+                    // Create a new Handlebars object
+                    Handlebars handlebars = new Handlebars();
+                    handlebars.registerHelper("when", new WhenHelper());
+                    Template template = handlebars.compileInline(templateString);
+
+                    // Create JSON and apply the template
+                    AdapterJsonfiyer adapterJsonfiyer = new AdapterJsonfiyer(adapter, adapterRefs, adapterExits, path);
+                    String adapterTemplate = template.apply(adapterJsonfiyer.getAdapterJsonObj(templateOption));
+
+                    // Pretty print the XML
+                    String prettyTemplate = prettyPrintByDom4j(adapterTemplate, 8, false);
+
+                    // Export the template to xml file
+                    genFiles.add(new GenFiles(adapter.getAdapterName() + ".xml", prettyTemplate.getBytes()));
                 }
-
-                // Read the input stream into a String
-                String templateString = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-
-                // Close the input stream
-                inputStream.close();
-
-                // Create a new Handlebars object
-                Handlebars handlebars = new Handlebars();
-                handlebars.registerHelper("when", new WhenHelper());
-                Template template = handlebars.compileInline(templateString);
-
-                // Create JSON and apply the template
-                AdapterJsonfiyer adapterJsonfiyer = new AdapterJsonfiyer(adapter, adapterRefs, adapterExits, path);
-                String adapterTemplate = template.apply(adapterJsonfiyer.getAdapterJsonObj(templateOption));
-
-                // Pretty print the XML
-                String prettyTemplate = prettyPrintByDom4j(adapterTemplate, 8, false);
-
-                // Export the template to xml file
-                genFiles.add(new GenFiles(adapter.getAdapterName() + ".xml", prettyTemplate.getBytes()));
             }
         }
 

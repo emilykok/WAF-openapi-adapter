@@ -1,48 +1,98 @@
+{{#*inline "statusExit"}}
+    {{#when Response.statuscode 'eq' code}}
+        <Exit name="{{name}}" state="{{state}}" code="{{code}}" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />
+    {{/when}}
+{{/inline}}
+
 <Configuration
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd"
+        xsi:noNamespaceSchemaLocation="https://frankdoc.frankframework.org/xml/xsd/FrankConfig.xsd"
 >
     <Adapter name="{{name}}" description="{{description}}">
         <Receiver name="{{receiver.name}}">
             <ApiListener name="{{apiListener.name}}" method="{{apiListener.method}}"
-                         uriPattern="{{apiListener.uriPattern}}" produces="{{apiListener.produces}}"/>
+                         uriPattern="{{apiListener.uriPattern}}" produces="{{apiListener.produces}}">
+            </ApiListener>
         </Receiver>
         <Pipeline>
+            {{#if adapterRefs.root}}
+                <Json2XmlInputValidator
+                        schema="{{name}}/xsd/{{adapterRefs.schema}}"
+                        root="{{adapterRefs.root}}"
+                        {{#if adapterRefs.responseRoot}}responseRoot="{{adapterRefs.responseRoot}}"{{/if}}
+                        deepSearch="false">
+                    {{#each parameters}}<Param name="{{this}}" sessionKey="{{this}}"/>{{/each}}
+                    <Forward name="failure" path=""/>
+                </Json2XmlInputValidator>
+            {{/if}}
+
             <Exits>
                 {{#each exits}}
                     {{#with this as |Response|}}
-                        {{#when Response.statuscode 'eq' '200'}}<Exit path="Success" state="SUCCESS" code="200" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '201'}}<Exit path="Created" state="SUCCESS" code="201" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '202'}}<Exit path="Accepted" state="SUCCESS" code="202" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '204'}}<Exit path="NoContent" state="SUCCESS" code="204" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '301'}}<Exit path="MovedPermanently" state="SUCCESS" code="301" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '304'}}<Exit path="NotModified" state="SUCCESS" code="304" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '400'}}<Exit path="BadRequest" state="ERROR" code="400" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '401'}}<Exit path="NotAuthorized" state="ERROR" code="401" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '403'}}<Exit path="NotAllowed" state="ERROR" code="403" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '412'}}<Exit path="PreconditionFailed" state="ERROR" code="412" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '500'}}<Exit path="ServerError" state="ERROR" code="500" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
-                        {{#when Response.statuscode 'eq' '504'}}<Exit path="Timeout" state="ERROR" code="504" {{#when Response.isEmpty 'eq' "true"}}empty="true"{{/when}} />{{/when}}
+                        {{!-- Informational Status Codes --}}
+                        {{> statusExit code="100" name="Continue" state="INFO"}}
+                        {{> statusExit code="101" name="SwitchingProtocols" state="INFO"}}
+                        {{> statusExit code="102" name="Processing" state="INFO"}}
+
+                        {{!-- Success Status Codes --}}
+                        {{> statusExit code="200" name="OK" state="SUCCESS"}}
+                        {{> statusExit code="201" name="Created" state="SUCCESS"}}
+                        {{> statusExit code="202" name="Accepted" state="SUCCESS"}}
+                        {{> statusExit code="203" name="NonAuthoritativeInformation" state="SUCCESS"}}
+                        {{> statusExit code="204" name="NoContent" state="SUCCESS"}}
+                        {{> statusExit code="205" name="ResetContent" state="SUCCESS"}}
+                        {{> statusExit code="206" name="PartialContent" state="SUCCESS"}}
+                        {{> statusExit code="207" name="MultiStatus" state="SUCCESS"}}
+                        {{> statusExit code="208" name="AlreadyReported" state="SUCCESS"}}
+                        {{> statusExit code="226" name="IMUsed" state="SUCCESS"}}
+
+                        {{!-- Client Error Status Codes --}}
+                        {{> statusExit code="400" name="BadRequest" state="ERROR"}}
+                        {{> statusExit code="401" name="Unauthorized" state="ERROR"}}
+                        {{> statusExit code="402" name="PaymentRequired" state="ERROR"}}
+                        {{> statusExit code="403" name="Forbidden" state="ERROR"}}
+                        {{> statusExit code="404" name="NotFound" state="ERROR"}}
+                        {{> statusExit code="405" name="MethodNotAllowed" state="ERROR"}}
+                        {{> statusExit code="406" name="NotAcceptable" state="ERROR"}}
+                        {{> statusExit code="407" name="ProxyAuthenticationRequired" state="ERROR"}}
+                        {{> statusExit code="408" name="RequestTimeout" state="ERROR"}}
+                        {{> statusExit code="409" name="Conflict" state="ERROR"}}
+                        {{> statusExit code="410" name="Gone" state="ERROR"}}
+                        {{> statusExit code="411" name="LengthRequired" state="ERROR"}}
+                        {{> statusExit code="412" name="PreconditionFailed" state="ERROR"}}
+                        {{> statusExit code="413" name="PayloadTooLarge" state="ERROR"}}
+                        {{> statusExit code="414" name="URITooLong" state="ERROR"}}
+                        {{> statusExit code="415" name="UnsupportedMediaType" state="ERROR"}}
+                        {{> statusExit code="416" name="RangeNotSatisfiable" state="ERROR"}}
+                        {{> statusExit code="417" name="ExpectationFailed" state="ERROR"}}
+                        {{> statusExit code="418" name="ImATeapot" state="ERROR"}}
+                        {{> statusExit code="421" name="MisdirectedRequest" state="ERROR"}}
+                        {{> statusExit code="422" name="UnprocessableEntity" state="ERROR"}}
+                        {{> statusExit code="423" name="Locked" state="ERROR"}}
+                        {{> statusExit code="424" name="FailedDependency" state="ERROR"}}
+                        {{> statusExit code="426" name="UpgradeRequired" state="ERROR"}}
+                        {{> statusExit code="428" name="PreconditionRequired" state="ERROR"}}
+                        {{> statusExit code="429" name="TooManyRequests" state="ERROR"}}
+                        {{> statusExit code="431" name="RequestHeaderFieldsTooLarge" state="ERROR"}}
+                        {{> statusExit code="451" name="UnavailableForLegalReasons" state="ERROR"}}
+
+                        {{!-- Server Error Status Codes --}}
+                        {{> statusExit code="500" name="InternalServerError" state="ERROR"}}
+                        {{> statusExit code="501" name="NotImplemented" state="ERROR"}}
+                        {{> statusExit code="502" name="BadGateway" state="ERROR"}}
+                        {{> statusExit code="503" name="ServiceUnavailable" state="ERROR"}}
+                        {{> statusExit code="504" name="GatewayTimeout" state="ERROR"}}
+                        {{> statusExit code="505" name="HTTPVersionNotSupported" state="ERROR"}}
+                        {{> statusExit code="506" name="VariantAlsoNegotiates" state="ERROR"}}
+                        {{> statusExit code="507" name="InsufficientStorage" state="ERROR"}}
+                        {{> statusExit code="508" name="LoopDetected" state="ERROR"}}
+                        {{> statusExit code="510" name="NotExtended" state="ERROR"}}
+                        {{> statusExit code="511" name="NetworkAuthenticationRequired" state="ERROR"}}
                     {{/with}}
                 {{/each}}
             </Exits>
 
             <!-- <Enter your code here> -->
-
-            {{#if adapterRefs.root}}
-            <Json2XmlInputValidator
-                    schema="{{adapterRefs.schema}}"
-                    root="{{adapterRefs.root}}"
-                    {{#if adapterRefs.responseRoot}}responseRoot="{{adapterRefs.responseRoot}}"{{/if}}
-                    deepSearch="true">
-                {{#each parameters}}<Param name="{{this}}" sessionKey="{{this}}"/>{{/each}}
-
-                <Forward name="success" path="Build_query"/>
-                <Forward name="parserError" path="NotWellFormed"/>
-                <Forward name="illegalRoot" path="IllegalRoot"/>
-                <Forward name="failure" path="InvalidXml"/>
-            </Json2XmlInputValidator>
-            {{/if}}
         </Pipeline>
     </Adapter>
 </Configuration>

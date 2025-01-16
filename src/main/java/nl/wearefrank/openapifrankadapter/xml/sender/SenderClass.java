@@ -21,7 +21,12 @@ public class SenderClass {
     private final String senderName;
 
     public SenderClass(Map.Entry<String, PathItem> path) {
-        this.senderName = path.getKey().substring(1);  // receiverName: remove the first slash
+        // receiverName: remove the first slash and remove curly brackets
+        this.senderName = path.getKey()
+                .substring(1)
+                .replace("/", "-")
+                .replace("{", "")
+                .replace("}", "");
     }
 
     public String getSenderName() {
